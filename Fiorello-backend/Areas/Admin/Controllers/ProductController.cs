@@ -98,7 +98,7 @@ namespace Fiorello_backend.Areas.Admin.Controllers
                 }
 
 
-                if (item.CheckFileSize(200))
+                if (item.CheckFileSize(2000))
                 {
                     ModelState.AddModelError("Image", "Image size must be max 200 KB");
                     return View();
@@ -108,7 +108,6 @@ namespace Fiorello_backend.Areas.Admin.Controllers
             await _productService.CreateAsync(request);
             return RedirectToAction(nameof(Index));
         }
-
 
         private async Task GetCategoriesAndDiscounts()
         {
@@ -122,13 +121,11 @@ namespace Fiorello_backend.Areas.Admin.Controllers
             return new SelectList(categories, "Id", "Name");
         }
 
-
         private async Task<SelectList> GetDiscounts()
         {
             List<Discount> discounts = await _discountService.GetAll();
             return new SelectList(discounts, "Id", "Name");
         }
-
 
         [HttpGet]
         public async Task<IActionResult> Edit(int? id)
@@ -145,7 +142,7 @@ namespace Fiorello_backend.Areas.Admin.Controllers
             {
                 Name = product.Name,
                 Description = product.Description,
-                Price = product.Price,
+                Price = product.Price.ToString("0.####").Replace(",","."),
                 CategoryId = product.CategoryId,
                 DiscountId = (int)product.DiscountId,
                 Images = product.Images.ToList()
@@ -155,6 +152,67 @@ namespace Fiorello_backend.Areas.Admin.Controllers
             return View(response);
 
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Update(ProductEditVM request, int? id)
+        {
+            if (id is null) return BadRequest();
+
+            await GetCategoriesAndDiscounts();
+
+            var product = await _productService.GetWithIncludesAsync((int)id);
+
+            if (product == null) return NotFound();
+
+            if (!ModelState.IsValid)
+            {
+                request.Images = product.Images.ToList();
+                return View(request);
+            }
+
+            if (request.NewImages is null)
+            {
+                foreach (var image in request.NewImages)
+                {
+                    if (!image.CheckFileType("image/"))
+                    {
+                        ModelState.AddModelError("NewImage", "Please select only an image file.");
+                        request.Images = product.Images.ToList();
+                        return View(request);
+                    }
+
+                    if (image.CheckFileSize(2000))
+                    {
+                        ModelState.AddModelError("NewImage", "The image size must be a maximum of 200KB.");
+                        request.Images = product.Images.ToList();
+                        return View(request);
+                    }
+                }
+            }
+
+            await _productService.EditAsync((int)id, request);
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteProductImage(int productId, int id)
+        {
+            await _productService.DeleteImageByIdAsync(id);
+
+            return Ok();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            await _productService.DeleteAsync(id);
+            return RedirectToAction(nameof(Index));
+        }
+
+
+
 
     }
 }

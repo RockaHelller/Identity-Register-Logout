@@ -10,7 +10,7 @@ namespace Fiorello_backend.Areas.Admin.ViewModels.Product
         [Required]
         public string Description { get; set; }
         [Required]
-        public decimal Price { get; set; }
+        public string Price { get; set; }
         public int CategoryId { get; set; }
         public int DiscountId { get; set; }
         [Required]
